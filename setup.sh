@@ -1,6 +1,6 @@
 pip install -r requirements.txt
 
-conda install conda-forge::ffmpeg
+conda install -y conda-forge::ffmpeg
 
 # Install VoiceCraft
 pip install -e git+https://github.com/facebookresearch/audiocraft.git@c5157b5bf14bf83449c17ea1eeb66c19fb4bc7f0#egg=audiocraft
