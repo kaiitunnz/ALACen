@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import google.generativeai as genai
@@ -10,7 +11,8 @@ from .. import config
 
 class GeminiClient(ParaphraseGenerator):
     def __init__(self):
-        genai.configure(api_key=config.api_key)
+        api_key = os.environ.get("GEMINI_API_KEY", None)
+        genai.configure(api_key=api_key or config.api_key)
         self.model = genai.GenerativeModel(config.gemini_model)
         self.generation_config = genai.GenerationConfig(
             candidate_count=config.candidate_count,
