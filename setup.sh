@@ -1,6 +1,7 @@
-pip install -r requirements.txt
-
 conda install -y conda-forge::ffmpeg
+
+pip install numpy
+pip install -r requirements.txt
 
 # Install VoiceCraft
 pip install -e git+https://github.com/facebookresearch/audiocraft.git@c5157b5bf14bf83449c17ea1eeb66c19fb4bc7f0#egg=audiocraft
@@ -13,7 +14,7 @@ pip install datasets==2.16.0
 pip install torchmetrics==0.11.1
 pip install huggingface_hub==0.22.2
 # install MFA for getting forced-alignment, this could take a few minutes
-conda install -c conda-forge montreal-forced-aligner=2.2.17 openfst=1.8.2 kaldi=5.5.1068
+conda install -y -c conda-forge montreal-forced-aligner=2.2.17 openfst=1.8.2 kaldi=5.5.1068
 # install MFA english dictionary and model
 mfa model download dictionary english_us_arpa
 mfa model download acoustic english_us_arpa
