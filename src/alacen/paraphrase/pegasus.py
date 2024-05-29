@@ -10,7 +10,7 @@ from .utils import count_syllables
 
 class PegasusAlacen(ParaphraseGenerator):
     MODEL_NAME = "pegasus_alacen"
-    MODEL_URL = "1LKvK8TmCW2Y5A-tlIEl5AY4CRu3723fo"
+    MODEL_URL = "1HMPHd7cNrNYAySZPlbBzRhtI7Z8pxnXk"
 
     def __init__(
         self, model_path: Optional[Union[str, Path]] = None, device: Any = "cpu"
