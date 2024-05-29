@@ -1,10 +1,12 @@
 import os
+import re
 from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import torchaudio
+from num2words import num2words
 
 from .. import TTS
 from .data.tokenizer import AudioTokenizer, TextTokenizer
@@ -167,6 +169,11 @@ class VoiceCraftTTS(TTS):
 
         prompt_end_frame = int(cut_off_sec * info.sample_rate)
 
+        target_transcript = (
+            self._normalize_target_transcript(target_transcript)
+            .replace("  ", " ")
+            .replace("  ", " ")
+        )
         self.to(args.device)
         _, gen_audio = inference_one_sample(
             self.model,
@@ -220,3 +227,25 @@ class VoiceCraftTTS(TTS):
             cutoff_time = cutoff_time_best
             cutoff_index = cutoff_index_best
         return cutoff_time, cutoff_index
+
+    def _normalize_target_transcript(transcript: str) -> str:
+        """Normalizes the target transcript for better phonemizer performance
+
+        Adapted from https://huggingface.co/spaces/pyp1/VoiceCraft_gradio/blob/main/app.py.
+        """
+        transcript = re.sub(r"(\d+)", r" \1 ", transcript)  # add spaces around numbers
+
+        def replace_with_words(match: re.Match) -> str:
+            num = match.group(0)
+            try:
+                return num2words(num)  # Convert numbers to words
+            except:
+                return num  # In case num2words fails (unlikely with digits but just to be safe)
+
+        transcript = re.sub(
+            r"\b\d+\b", replace_with_words, transcript
+        )  # Regular expression that matches numbers
+
+        transcript = re.sub(r"\s+", " ", transcript)  # Remove extra spaces
+
+        return transcript
