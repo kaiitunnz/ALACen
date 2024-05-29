@@ -1,5 +1,6 @@
 av==11.0.0
 blobfile==2.1.1
+cmudict==1.0.23
 dac==0.4.2
 datasets==2.16.0
 demucs==4.0.1
@@ -35,6 +36,7 @@ setuptools==69.5.1
 soundfile==0.12.1
 spacy==3.5.2
 submitit==1.5.1
+syllables==1.0.9
 torch==2.0.1
 torchaudio==2.0.2
 torchmetrics==0.11.1

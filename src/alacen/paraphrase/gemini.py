@@ -6,6 +6,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from google.ai.generativelanguage import Candidate
 
 from . import ParaphraseGenerator
+from .utils import count_syllables
 from .. import config
 
 
@@ -53,14 +54,13 @@ class GeminiClient(ParaphraseGenerator):
                 safety_settings=self.safety_settings,
             )
             candidates.extend(outputs.candidates)
-        scores = self.score_outputs(speech, candidates)
+
         candidate_strs = [
             " ".join(part.text for part in candidate.content.parts)
             for candidate in candidates
         ]
-        output = sorted(zip(scores, candidate_strs))
-        return [o[-1] for o in output]
-
-    def score_outputs(self, speech: str, outputs: List[Candidate]) -> List[float]:
-        speech_tokens = self.model.count_tokens(speech).total_tokens
-        return [abs(speech_tokens - output.token_count) for output in outputs]
+        speech_syllables = count_syllables(speech)
+        output = sorted(
+            candidate_strs, key=lambda x: abs(speech_syllables - count_syllables(x))
+        )
+        return output

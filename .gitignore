@@ -1,6 +1,7 @@
 audiocraft
 ./*.mp4
 *.pt
+pegasus_alacen
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -228,7 +228,7 @@ class VoiceCraftTTS(TTS):
             cutoff_index = cutoff_index_best
         return cutoff_time, cutoff_index
 
-    def _normalize_target_transcript(transcript: str) -> str:
+    def _normalize_target_transcript(self, transcript: str) -> str:
         """Normalizes the target transcript for better phonemizer performance
 
         Adapted from https://huggingface.co/spaces/pyp1/VoiceCraft_gradio/blob/main/app.py.

@@ -1,11 +1,11 @@
 import atexit
+import logging
 import os
 import shutil
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
 
 import ffmpeg
-import torch
 
 from .asr import ASR
 from .lipsync import LipSync
@@ -34,6 +34,18 @@ class ALACen:
         self.paraphrase = paraphrase
         self.tts = tts
         self.lipsync = lipsync
+        self.logger = self._init_logger()
+
+    def _init_logger(self) -> logging.Logger:
+        logger = logging.getLogger("alacen")
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "[%(asctime)s | %(name)s | %(levelname)s] %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        return logger
 
     def run(
         self,
@@ -46,6 +58,9 @@ class ALACen:
         device: Any = "cuda",
         clean_up: bool = True,
     ):
+        if verbose:
+            self.logger.setLevel(logging.DEBUG)
+
         video_path = Path(video_path)
         if tmp_dir is None:
             tmp_dir = video_path.with_suffix("")
@@ -55,26 +70,41 @@ class ALACen:
         if clean_up:
             _to_clean_up.append(tmp_dir)
 
+        # Extract Audio
+        self.logger.debug("Extracting audio from video...")
         original_audio_path = tmp_dir / video_path.with_suffix(".wav").name
         self.extract_audio(video_path, original_audio_path)
 
         # Speech Recognition
+        self.logger.debug("Performing speech recognition...")
         transcript = self.asr.transcribe(original_audio_path, device)
+        self.logger.debug(f"Transcript: {transcript}")
 
         # Paraphrase Generation
+        self.logger.debug("Generating paraphrase...")
         target_transcripts = self.paraphrase.paraphrase(transcript, num_paraphrases)
         if num_paraphrases > 1:
             print("Please choose the best paraphrase among the following:")
-            for i, candidate in enumerate(target_transcripts, 1):
-                print(f"{i}. {candidate.strip()}")
-            choice = int(
-                input(
-                    f"Enter the number of the best paraphrase (1 - {len(target_transcripts)}): "
+            while True:
+                for i, candidate in enumerate(target_transcripts, 1):
+                    print(f"{i}. {candidate.strip()}")
+                choice_str = input(
+                    f"Enter the number of the best paraphrase (1 - {len(target_transcripts)}) or manually enter your own paraphrase ('r' to retry): "
                 )
-            )
-            if not (1 <= choice <= len(target_transcripts)):
-                raise ValueError("Invalid choice.")
-            target_transcript = target_transcripts[choice - 1]
+                if choice_str.lower() == "r":
+                    target_transcripts = self.paraphrase.paraphrase(
+                        transcript, num_paraphrases
+                    )
+                    continue
+                if not choice_str.isdigit():
+                    target_transcript = choice_str
+                    break
+                choice = int(choice_str)
+                if not (1 <= choice <= len(target_transcripts)):
+                    print("Invalid choice. Please try again.")
+                    continue
+                target_transcript = target_transcripts[choice - 1]
+                break
             print("Selected paraphrase:", target_transcript.strip())
         else:
             target_transcript = target_transcripts[0]
@@ -82,19 +112,26 @@ class ALACen:
         os.makedirs(out_dir, exist_ok=True)
 
         # Text-to-Speech
-        generated_audio_path = self.tts.generate(
-            tts_args(
-                out_dir=out_dir,
-                tmp_dir=tmp_dir,
-                audio_fname=original_audio_path.name,
-                original_transcript=transcript,
-                target_transcript=target_transcript,
-                verbose=verbose,
-                device=device,
+        self.logger.debug("Generating new audio...")
+        while True:
+            generated_audio_path = self.tts.generate(
+                tts_args(
+                    out_dir=out_dir,
+                    tmp_dir=tmp_dir,
+                    audio_fname=original_audio_path.name,
+                    original_transcript=transcript,
+                    target_transcript=target_transcript,
+                    verbose=verbose,
+                    device=device,
+                )
             )
-        )
+            print(f"Generated audio file saved to '{generated_audio_path}'")
+            choice = input("Do you want to retry? (y/n): ")
+            if choice.lower() != "y":
+                break
 
         # Lip Synchronization
+        self.logger.debug("Generating lip-synced video...")
         self.lipsync.generate(
             video_path,
             generated_audio_path,
@@ -103,6 +140,9 @@ class ALACen:
 
         if clean_up:
             clean_up_func()
+
+        self.logger.debug("DONE")
+        self.logger.setLevel(logging.INFO)
 
     def extract_audio(self, input_file: Path, output_file: Path):
         process = ffmpeg.input(str(input_file)).output(
