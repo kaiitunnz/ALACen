@@ -110,7 +110,7 @@ class VoiceCraftTTS(TTS):
             english_us_arpa english_us_arpa {align_dir} --beam {beam_size} --retry_beam {retry_beam_size}"
         )
 
-    def parase_mfa(self, mfa_path: Union[str, Path]) -> List[MfaAlignmentEntry]:
+    def parse_mfa(self, mfa_path: Union[str, Path]) -> List[MfaAlignmentEntry]:
         with open(mfa_path) as f:
             next(f)  # skip the header
             result = [MfaAlignmentEntry.from_line(line) for line in f]
@@ -148,7 +148,7 @@ class VoiceCraftTTS(TTS):
             ignore_exist=True,
             verbose=args.verbose,
         )
-        alignments = self.parase_mfa(mfa_path)
+        alignments = self.parse_mfa(mfa_path)
         cut_off_sec, cut_off_word_idx = self._find_closest_word_boundary(
             alignments, args.cut_off_sec, args.margin, args.cutoff_tolerance
         )
