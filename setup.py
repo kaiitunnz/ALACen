@@ -2,6 +2,9 @@ from setuptools import setup  # type:ignore
 
 from src.alacen import __version__
 
+with open("requirements.txt", "r") as f:
+    install_requires = [line for line in f if not line.lstrip().startswith("#")]
+
 setup(
     name="alacen",
     version=__version__,
@@ -10,4 +13,5 @@ setup(
     author_email="noppanat.wad@gmail.com",
     package_data={"alacen": ["py.typed"]},
     package_dir={"": "src"},
+    install_requires=install_requires,
 )

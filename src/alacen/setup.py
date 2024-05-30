@@ -6,12 +6,10 @@ def setup():
     if subprocess.call("conda install -y conda-forge::ffmpeg", shell=True):
         raise Exception("Failed to install ffmpeg")
 
-    package_dir = Path(__file__).parent.parent.parent
+    package_dir = Path(__file__).parent
 
     # Install dependencies
     dependencies = [
-        "numpy",
-        f"-r {package_dir / 'requirements.txt'}",
         "git+https://github.com/facebookresearch/audiocraft.git@c5157b5bf14bf83449c17ea1eeb66c19fb4bc7f0#egg=audiocraft",
         "xformers==0.0.22",
         "torchaudio==2.0.2 torch==2.0.1 torchvision==0.15.2",
