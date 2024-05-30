@@ -37,9 +37,9 @@ def setup(conda_env: str):
     if run_shell("mfa model download acoustic english_us_arpa"):
         raise Exception(f"Failed to install MFA acoustic")
 
-    diff2lip_dir = package_dir / "src/alacen/lipsync/diff2lip"
+    diff2lip_dir = package_dir / "lipsync/diff2lip"
     # Install Diff2Lip dependencies
-    if run_shell(f"pip install -e {diff2lip_dir / 'guided-diffusion'}"):
+    if run_shell(f"pip install {diff2lip_dir / 'guided-diffusion'}"):
         raise Exception("Failed to install guided-diffusion")
     if run_shell("pip install gdown"):
         raise Exception("Failed to install gdown")
