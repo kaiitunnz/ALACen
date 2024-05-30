@@ -13,13 +13,20 @@ def parse_args():
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Verbose mode", default=False
     )
+    parser.add_argument(
+        "--conda-env",
+        default=None,
+        help="Name of the Conda environment. This is required when running setup.",
+    )
     return parser.parse_args()
 
 
 args = parse_args()
 
 if args.action == "setup":
-    setup()
+    if args.conda_env is None:
+        raise ValueError("Conda environment name is required for setup")
+    setup(args.conda_env)
     exit()
 
 try:
