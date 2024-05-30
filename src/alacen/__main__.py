@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
+from .setup import setup
+
 
 def parse_args():
     parser = ArgumentParser()
@@ -24,7 +26,6 @@ try:
     import torch
 
     from .alacen import ALACen
-    from .setup import setup
     from .asr.whisper import Whisper
     from .paraphrase.pegasus import PegasusAlacen
     from .tts.voicecraft.voicecraft import VoiceCraftTTS, VoiceCraftArgs
