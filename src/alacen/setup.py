@@ -6,10 +6,12 @@ def setup():
     if subprocess.call("conda install -y conda-forge::ffmpeg", shell=True):
         raise Exception("Failed to install ffmpeg")
 
+    package_dir = Path(__file__).parent.parent.parent
+
     # Install dependencies
     dependencies = [
         "numpy",
-        "-r requirements.txt",
+        f"-r {package_dir / 'requirements.txt'}",
         "git+https://github.com/facebookresearch/audiocraft.git@c5157b5bf14bf83449c17ea1eeb66c19fb4bc7f0#egg=audiocraft",
         "xformers==0.0.22",
         "torchaudio==2.0.2 torch==2.0.1 torchvision==0.15.2",
@@ -35,7 +37,7 @@ def setup():
     if subprocess.call("mfa model download acoustic english_us_arpa", shell=True):
         raise Exception(f"Failed to install MFA acoustic")
 
-    diff2lip_dir = Path(__file__).parent / "lipsync" / "diff2lip"
+    diff2lip_dir = package_dir / "src/alacen/lipsync/diff2lip"
     # Install Diff2Lip dependencies
     if subprocess.call(
         f"pip install -e {diff2lip_dir / 'guided-diffusion'}", shell=True
