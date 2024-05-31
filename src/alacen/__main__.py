@@ -1,33 +1,17 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from .setup import setup
-
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument(
-        "action", nargs="?", choices=["setup"], default=None, help="ALACen command"
-    )
     parser.add_argument("--video", type=Path, help="Path to the video file")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Verbose mode", default=False
-    )
-    parser.add_argument(
-        "--conda-env",
-        default=None,
-        help="Name of the Conda environment. This is required when running setup.",
     )
     return parser.parse_args()
 
 
 args = parse_args()
-
-if args.action == "setup":
-    if args.conda_env is None:
-        raise ValueError("Conda environment name is required for setup")
-    setup(args.conda_env)
-    exit()
 
 try:
     import torch
@@ -39,7 +23,7 @@ try:
     from .lipsync.diff2lip.diff2lip import Diff2Lip, Diff2LipArgs
 except ImportError:
     raise ImportError(
-        "ALACen is not installed. Please run `python -m alacen setup` to install ALACen."
+        "ALACen has not been set up. Please run `bash setup.sh` to set up ALACen."
     )
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
