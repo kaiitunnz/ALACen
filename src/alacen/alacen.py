@@ -3,7 +3,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Literal, Optional, Union
 
 import ffmpeg
 
@@ -54,10 +54,14 @@ class ALACen:
         tts_args: Callable[..., Any],
         tmp_dir: Optional[Union[str, Path]] = None,
         num_paraphrases: int = 1,
+        merge_av: bool = True,
+        mode: Literal["auto", "semi"] = "auto",
         verbose: bool = True,
         device: Any = "cuda",
         clean_up: bool = True,
     ):
+        self._validate_args(num_paraphrases=num_paraphrases, mode=mode)
+
         if verbose:
             self.logger.setLevel(logging.DEBUG)
 
@@ -83,11 +87,11 @@ class ALACen:
         # Paraphrase Generation
         self.logger.debug("Generating paraphrase...")
         target_transcripts = self.paraphrase.paraphrase(transcript, num_paraphrases)
-        if num_paraphrases > 1:
+        if num_paraphrases > 1 and mode == "semi":
             print("Please choose the best paraphrase among the following:")
             while True:
                 for i, candidate in enumerate(target_transcripts, 1):
-                    print(f"{i}. {candidate.strip()}")
+                    print(f"{i}. {candidate.strip()}", flush=True)
                 choice_str = input(
                     f"Enter the number of the best paraphrase (1 - {len(target_transcripts)}) or manually enter your own paraphrase ('r' to retry): "
                 )
@@ -105,16 +109,16 @@ class ALACen:
                     continue
                 target_transcript = target_transcripts[choice - 1]
                 break
-            print("Selected paraphrase:", target_transcript.strip())
         else:
             target_transcript = target_transcripts[0]
+        print("Selected paraphrase:", target_transcript.strip(), flush=True)
 
         os.makedirs(out_dir, exist_ok=True)
 
         # Text-to-Speech
         self.logger.debug("Generating new audio...")
         while True:
-            generated_audio_path = self.tts.generate(
+            generated_audio_paths = self.tts.generate(
                 tts_args(
                     out_dir=out_dir,
                     tmp_dir=tmp_dir,
@@ -125,18 +129,47 @@ class ALACen:
                     device=device,
                 )
             )
-            print(f"Generated audio file saved to '{generated_audio_path}'")
-            choice = input("Do you want to retry? (y/n): ")
-            if choice.lower() != "y":
-                break
+            if len(generated_audio_paths) == 1 or mode == "auto":
+                generated_audio_path = generated_audio_paths.pop(0)
+                print(
+                    f"Generated audio file saved to '{generated_audio_path}'",
+                    flush=True,
+                )
+                if mode == "semi":
+                    choice = input("Do you want to retry? (y/n): ")
+                    if choice.lower() == "y":
+                        continue
+            else:
+                print("Generated audio files saved to:")
+                for i, path in enumerate(generated_audio_paths, 1):
+                    print(f"  {i}. {path}")
+                choice_str = input(
+                    f"Enter the number of the best audio (1 - {len(generated_audio_paths)}) ('r' to retry): "
+                )
+                if choice_str.isdigit():
+                    choice = int(choice_str)
+                    if choice < 1 or choice > len(generated_audio_paths):
+                        print("Invalid choice. Please try again.")
+                        continue
+                else:
+                    if choice_str.lower() != "r":
+                        print("Invalid choice. Please try again.")
+                    continue
+                generated_audio_path = generated_audio_paths.pop(choice - 1)
+            _to_clean_up.extend(generated_audio_paths)
+            break
 
         # Lip Synchronization
+        out_path = Path(out_dir) / f"{video_path.stem}_censored.mp4"
         self.logger.debug("Generating lip-synced video...")
-        self.lipsync.generate(
-            video_path,
-            generated_audio_path,
-            Path(out_dir) / f"{video_path.stem}_censored.mp4",
-        )
+        self.lipsync.generate(video_path, generated_audio_path, out_path)
+
+        if merge_av:
+            self.logger.debug("Merging generated audio and video...")
+            merged_path = out_path.with_stem(f"{video_path.stem}_censored_merged")
+            self.merge_av(out_path, generated_audio_path, merged_path)
+            os.remove(out_path)
+            merged_path.rename(out_path)
 
         if clean_up:
             clean_up_func()
@@ -149,3 +182,25 @@ class ALACen:
             str(output_file), acodec="pcm_s16le", ar="44100", ac=2, loglevel="quiet"
         )
         process.run()
+
+    def merge_av(self, video_path: Path, audio_path: Path, out_path: Path):
+        # ffmpeg -i v.mp4 -i a.wav -c:v copy -map 0:v:0 -map 1:a:0 new.mp4 -shortest
+        input_video = ffmpeg.input(video_path)
+        input_audio = ffmpeg.input(audio_path)
+        process = ffmpeg.output(
+            input_video,
+            input_audio,
+            str(out_path),
+            c="copy",
+            shortest=None,
+            loglevel="quiet",
+        ).global_args("-map", "0:v:0", "-map", "1:a:0")
+        process.run()
+
+    def _validate_args(
+        self, num_paraphrases: int, mode: Literal["auto", "semi"] = "auto"
+    ):
+        if num_paraphrases < 1:
+            raise ValueError("num_paraphrases must be greater than or equal to 1.")
+        if mode not in ["auto", "semi"]:
+            raise ValueError("Invalid execution mode.")

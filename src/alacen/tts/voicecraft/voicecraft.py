@@ -3,15 +3,18 @@ import re
 from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
+import torch
 import torchaudio
 from num2words import num2words
+from torchaudio.sox_effects import apply_effects_tensor
 
+from ...utils import seed_everything
 from .. import TTS
 from .data.tokenizer import AudioTokenizer, TextTokenizer
-from .models.voicecraft import VoiceCraft
 from .inference_tts_scale import inference_one_sample
+from .models.voicecraft import VoiceCraft
 
 
 @dataclass
@@ -49,9 +52,17 @@ class VoiceCraftArgs:
     temperature: float = 1
     silence_tokens: Tuple[int, ...] = (1388, 1898, 131)
     kvcache: float = 1
-    seed: int = -1
+    seed: Optional[int] = None
     verbose: bool = True
     device: str = "cuda"
+
+    # ALACen args
+    num_samples: int = 1
+    """number of audio samples to generate. Default is 1."""
+    padding: Optional[Union[Literal["begin", "end", "both"], Tuple[float, float]]] = (
+        None
+    )
+    """padding to add to the beginning and/or end of the audio. Default is None."""
 
     @property
     def decode_config(self):
@@ -66,6 +77,13 @@ class VoiceCraftArgs:
             "silence_tokens": self.silence_tokens,
             "sample_batch_size": self.sample_batch_size,
         }
+
+    @classmethod
+    def constructor(cls, **kwargs) -> Callable[..., "VoiceCraftArgs"]:
+        def inner(**inner_kwargs) -> "VoiceCraftArgs":
+            return cls(**(kwargs | inner_kwargs))
+
+        return inner
 
 
 class VoiceCraftTTS(TTS):
@@ -123,13 +141,16 @@ class VoiceCraftTTS(TTS):
         self.audio_tokenizer.to(device)
         return self
 
-    def generate(self, args: VoiceCraftArgs, auto_mfa: bool = True) -> Path:
+    def generate(self, args: VoiceCraftArgs, auto_mfa: bool = True) -> List[Path]:
         out_dir = args.out_dir
         tmp_dir = args.tmp_dir
         audio_fname = args.audio_fname
         audio_path = Path(tmp_dir) / audio_fname
         audio_file = audio_path.with_suffix(".wav")
         mfa_path = self.get_mfa_path(tmp_dir, args.audio_fname)
+
+        if args.seed is not None:
+            seed_everything(args.seed)
 
         if not auto_mfa:
             if not mfa_path.exists():
@@ -174,25 +195,49 @@ class VoiceCraftTTS(TTS):
             .replace("  ", " ")
             .replace("  ", " ")
         )
+        pad_duration_file_list: List[Tuple[float, Path]] = []
         self.to(args.device)
-        _, gen_audio = inference_one_sample(
-            self.model,
-            Namespace(**self.config),
-            self.phn2num,
-            self.text_tokenizer,
-            self.audio_tokenizer,
-            audio_file,
-            target_transcript,
-            args.device,
-            args.decode_config,
-            prompt_end_frame,
-        )
+        for i in range(1, args.num_samples + 1):
+            gen_audio: torch.Tensor
+            _, gen_audio = inference_one_sample(
+                self.model,
+                Namespace(**self.config),
+                self.phn2num,
+                self.text_tokenizer,
+                self.audio_tokenizer,
+                audio_file,
+                target_transcript,
+                args.device,
+                args.decode_config,
+                prompt_end_frame,
+            )
+            gen_audio = gen_audio[0].cpu()
+            pad_dur = self._get_pad_duration(gen_audio, args.codec_audio_sr, audio_dur)
+            if args.padding is not None:
+                gen_audio = self._pad_audio(
+                    gen_audio, args.codec_audio_sr, pad_dur, args.padding
+                )
+            if args.seed is None:
+                seg_save_fn_gen = Path(f"{out_dir}/{audio_file.stem}_gen_{i}.wav")
+            else:
+                seg_save_fn_gen = Path(
+                    f"{out_dir}/{audio_file.stem}_gen_seed{args.seed}_{i}.wav"
+                )
+            torchaudio.save(seg_save_fn_gen, gen_audio, args.codec_audio_sr)
+            pad_duration_file_list.append((pad_dur, seg_save_fn_gen))
         self.to(self.default_device)
 
-        gen_audio = gen_audio[0].cpu()
-        seg_save_fn_gen = Path(f"{out_dir}/{audio_file.stem}_gen_seed{args.seed}.wav")
-        torchaudio.save(seg_save_fn_gen, gen_audio, args.codec_audio_sr)
-        return seg_save_fn_gen
+        # Sort the output files by time difference.
+        if len(pad_duration_file_list) > 1:
+            audio_files = [f for _, f in sorted(pad_duration_file_list)]
+            audio_files = [
+                f.with_stem(f"{f.stem.rsplit('_', 1)[0]}_{i}")
+                for i, (_, f) in enumerate(pad_duration_file_list, 1)
+            ]
+        else:
+            audio_files = [pad_duration_file_list[0][1]]
+
+        return audio_files
 
     def _find_closest_word_boundary(
         self,
@@ -249,3 +294,36 @@ class VoiceCraftTTS(TTS):
         transcript = re.sub(r"\s+", " ", transcript)  # Remove extra spaces
 
         return transcript
+
+    def _get_pad_duration(
+        self, audio: torch.Tensor, sample_rate: int, target_duration: float
+    ) -> float:
+        num_samples = audio.size(-1)
+        pad_duration = target_duration - (num_samples / sample_rate)
+        return max(pad_duration, 0)
+
+    def _pad_audio(
+        self,
+        audio: torch.Tensor,
+        sample_rate: int,
+        pad_duration: float,
+        padding: Union[Literal["begin", "end", "both"], Tuple[float, float]],
+    ) -> torch.Tensor:
+        if padding == "begin":
+            begin, end = pad_duration, 0
+        elif padding == "end":
+            begin, end = 0, pad_duration
+        elif padding == "both":
+            begin = pad_duration / 2
+            end = begin
+        else:
+            try:
+                begin, end = padding
+            except:
+                raise ValueError(
+                    "padding must be either 'begin', 'end', 'both', or a tuple of two floats"
+                )
+        audio, _ = apply_effects_tensor(
+            audio, sample_rate, [["pad", str(begin), str(end)]]
+        )
+        return audio
