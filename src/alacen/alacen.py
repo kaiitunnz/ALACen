@@ -160,7 +160,7 @@ class ALACen:
             break
 
         # Lip Synchronization
-        out_path = Path(out_dir) / f"{video_path.stem}_censored.mp4"
+        out_path = Path(out_dir) / f"{video_path.stem}_censored_{mode}.mp4"
         self.logger.debug("Generating lip-synced video...")
         self.lipsync.generate(video_path, generated_audio_path, out_path)
 
