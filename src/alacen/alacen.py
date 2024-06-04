@@ -168,6 +168,7 @@ class ALACen:
             self.logger.debug("Merging generated audio and video...")
             merged_path = out_path.with_stem(f"{video_path.stem}_censored_merged")
             self.merge_av(out_path, generated_audio_path, merged_path)
+            os.remove(generated_audio_path)
             os.remove(out_path)
             merged_path.rename(out_path)
 

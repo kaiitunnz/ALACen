@@ -278,17 +278,19 @@ class VoiceCraftTTS(TTS):
 
         Adapted from https://huggingface.co/spaces/pyp1/VoiceCraft_gradio/blob/main/app.py.
         """
-        transcript = re.sub(r"(\d+)", r" \1 ", transcript)  # add spaces around numbers
+        transcript = re.sub(
+            r"([\d,]+)", r" \1 ", transcript
+        )  # add spaces around numbers
 
         def replace_with_words(match: re.Match) -> str:
-            num = match.group(0)
+            num = match.group(0).replace(",", "")
             try:
                 return num2words(num)  # Convert numbers to words
             except:
                 return num  # In case num2words fails (unlikely with digits but just to be safe)
 
         transcript = re.sub(
-            r"\b\d+\b", replace_with_words, transcript
+            r"\b[\d,]+\b", replace_with_words, transcript
         )  # Regular expression that matches numbers
 
         transcript = re.sub(r"\s+", " ", transcript)  # Remove extra spaces
