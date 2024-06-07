@@ -157,22 +157,20 @@ def main():
                 )
                 transcript = gr.Textbox(
                     placeholder="Input video transcript",
-                    interactive=True,
+                    interactive=False,
                     label="Transcript",
                 )
-                asr_button = gr.Button("Transcribe")
-                asr_button.click(asr, inputs=input_video, outputs=transcript)
+                asr_button = gr.Button("Transcribe", interactive=False)
             with gr.Column():
                 paraphrases = gr.Radio(
-                    type="value", interactive=True, label="Paraphrases"
+                    type="value", interactive=False, label="Paraphrases"
                 )
                 selected_paraphrase = gr.Textbox(
                     placeholder="Selected paraphrase",
-                    interactive=True,
+                    interactive=False,
                     label="Selected Paraphrase",
                 )
-                paraphrase_button = gr.Button("Paraphrase")
-
+                paraphrase_button = gr.Button("Paraphrase", interactive=False)
                 paraphrases.change(
                     lambda x: x, inputs=paraphrases, outputs=selected_paraphrase
                 )
@@ -183,19 +181,15 @@ def main():
                     interactive=False,
                     label="Generated Speech",
                 )
-                generate_audio_button = gr.Button("Text-to-Speech")
-
+                generate_audio_button = gr.Button("Text-to-Speech", interactive=False)
             with gr.Column():
                 lipsynced_video = gr.Video(
                     format="mp4", interactive=False, label="Output Video"
                 )
-                lipsync_button = gr.Button("Lip Sync")
-                lipsync_button.click(
-                    lipsync, inputs=generated_audio, outputs=lipsynced_video
-                )
+                lipsync_button = gr.Button("Lip Sync", interactive=False)
 
         with gr.Row():
-            run_all_button = gr.Button("Run All")
+            run_all_button = gr.Button("Run All", interactive=False)
 
         with gr.Accordion("Parameters", open=False):
             with gr.Group():
@@ -243,73 +237,113 @@ def main():
                     label="Padding",
                 )
 
-            def update_paraphrase(transcript: str, num_paraphrases: float):
-                paraphrase_list = paraphrase(transcript, num_paraphrases)
-                best_paraphrase = paraphrase_list[0]
-                paraphrases = gr.Radio(
-                    paraphrase_list,
-                    value=best_paraphrase,
-                    type="value",
+        # --------------- Register event handlers --------------- #
+
+        def upload_video(video_path: Optional[str]):
+            interactive = video_path is not None
+            asr_button = gr.Button("Transcribe", interactive=interactive)
+            run_all_button = gr.Button("Run All", interactive=interactive)
+            return asr_button, run_all_button
+
+        def click_asr(video_path: str, output_dict: Optional[Dict[str, Any]] = None):
+            transcript = asr(video_path)
+            transcript_textbox = (
+                gr.Textbox(
+                    placeholder="Input video transcript",
+                    interactive=False,
+                    label="Transcript",
+                )
+                if transcript is None
+                else gr.Textbox(
+                    value=transcript,
                     interactive=True,
-                    label="Paraphrases",
+                    label="Transcript",
                 )
-                return paraphrases, best_paraphrase
+            )
+            paraphrase_button = (
+                gr.Button("Paraphrase", interactive=False)
+                if transcript is None
+                else gr.Button("Paraphrase", interactive=True)
+            )
+            if output_dict is not None:
+                output_dict["transcript"] = transcript
+            return transcript_textbox, paraphrase_button
 
-            def run_all(
-                video_path: str,
-                num_paraphrases: float,
-                cut_off_sec: str = "None",
-                margin: float = 0.08,
-                cutoff_tolerance: float = 1,
-                beam_size: int = 50,
-                retry_beam_size: int = 200,
-                stop_repetition: int = 3,
-                sample_batch_size: int = 3,
-                codec_audio_sr: int = 16000,
-                codec_sr: int = 50,
-                top_k: int = 0,
-                top_p: float = 0.9,
-                temperature: float = 1,
-                silence_tokens: str = "(1388, 1898, 131)",
-                kvcache: float = 1,
-                seed: str = "None",
-                padding: str = "none",
-            ) -> Tuple[str, List[str], str, Path, Path]:
-                transcript = asr(video_path)
-                paraphrases, best_paraphrase = update_paraphrase(
-                    transcript, num_paraphrases
+        def click_paraphrase(
+            transcript: str,
+            num_paraphrases: float,
+            output_dict: Optional[Dict[str, Any]] = None,
+        ):
+            paraphrase_list = paraphrase(transcript, num_paraphrases)
+            best_paraphrase = None if paraphrase_list is None else paraphrase_list[0]
+            paraphrases = gr.Radio(
+                paraphrase_list,
+                value=best_paraphrase,
+                type="value",
+                interactive=True,
+                label="Paraphrases",
+            )
+            selected_paraphrase = (
+                gr.Textbox(
+                    placeholder="Selected paraphrase",
+                    interactive=False,
+                    label="Selected Paraphrase",
                 )
-                params = {
-                    "cut_off_sec": cut_off_sec,
-                    "margin": margin,
-                    "cutoff_tolerance": cutoff_tolerance,
-                    "beam_size": beam_size,
-                    "retry_beam_size": retry_beam_size,
-                    "stop_repetition": stop_repetition,
-                    "sample_batch_size": sample_batch_size,
-                    "codec_audio_sr": codec_audio_sr,
-                    "codec_sr": codec_sr,
-                    "top_k": top_k,
-                    "top_p": top_p,
-                    "temperature": temperature,
-                    "silence_tokens": silence_tokens,
-                    "kvcache": kvcache,
-                    "seed": seed,
-                    "padding": padding,
-                }
-                generated_audio_path = tts(transcript, best_paraphrase, **params)
-                output_path = lipsync(generated_audio_path)
-                return (
-                    transcript,
-                    paraphrases,
-                    best_paraphrase,
-                    generated_audio_path,
-                    output_path,
+                if best_paraphrase is None
+                else gr.Textbox(
+                    value=best_paraphrase,
+                    interactive=True,
+                    label="Selected Paraphrase",
                 )
+            )
+            generate_audio_button = (
+                gr.Button("Text-to-Speech", interactive=False)
+                if paraphrase_list is None
+                else gr.Button("Text-to-Speech", interactive=True)
+            )
+            if output_dict is not None:
+                output_dict["best_paraphrase"] = best_paraphrase
+            return paraphrases, selected_paraphrase, generate_audio_button
 
-            paraphrase_param_components = [num_paraphrases]
+        def click_generate_audio(*tts_args):
+            generated_audio_path = tts(*tts_args)
+            lipsync_button = (
+                gr.Button("Lip Sync", interactive=False)
+                if generated_audio_path is None
+                else gr.Button("Lip Sync", interactive=True)
+            )
+            return generated_audio_path, lipsync_button
 
-            tts_param_components = [
+        def click_lipsync(generated_audio_path: str):
+            lipsynced_video = lipsync(generated_audio_path)
+            return lipsynced_video
+
+        def run_all(
+            video_path: str,
+            num_paraphrases: float,
+            cut_off_sec: str = "None",
+            margin: float = 0.08,
+            cutoff_tolerance: float = 1,
+            beam_size: int = 50,
+            retry_beam_size: int = 200,
+            stop_repetition: int = 3,
+            sample_batch_size: int = 3,
+            codec_audio_sr: int = 16000,
+            codec_sr: int = 50,
+            top_k: int = 0,
+            top_p: float = 0.9,
+            temperature: float = 1,
+            silence_tokens: str = "(1388, 1898, 131)",
+            kvcache: float = 1,
+            seed: str = "None",
+            padding: str = "none",
+        ) -> Tuple[str, List[str], str, Path, Path]:
+            output_dict = {}
+            transcript, paraphrase_button = click_asr(video_path, output_dict)
+            paraphrases, selected_paraphrase, generate_audio_button = click_paraphrase(
+                output_dict["transcript"], num_paraphrases, output_dict
+            )
+            params = [
                 cut_off_sec,
                 margin,
                 cutoff_tolerance,
@@ -327,30 +361,77 @@ def main():
                 seed,
                 padding,
             ]
+            generated_audio_path, lipsync_button = click_generate_audio(
+                output_dict["transcript"], output_dict["best_paraphrase"], *params
+            )
+            output_path = click_lipsync(generated_audio_path)
+            return (
+                transcript,
+                paraphrase_button,
+                paraphrases,
+                selected_paraphrase,
+                generate_audio_button,
+                generated_audio_path,
+                lipsync_button,
+                output_path,
+            )
 
-            paraphrase_button.click(
-                update_paraphrase,
-                inputs=[transcript] + paraphrase_param_components,
-                outputs=[paraphrases, selected_paraphrase],
-            )
-            generate_audio_button.click(
-                tts,
-                inputs=[transcript, selected_paraphrase] + tts_param_components,
-                outputs=generated_audio,
-            )
-            run_all_button.click(
-                run_all,
-                inputs=[input_video]
-                + paraphrase_param_components
-                + tts_param_components,
-                outputs=[
-                    transcript,
-                    paraphrases,
-                    selected_paraphrase,
-                    generated_audio,
-                    lipsynced_video,
-                ],
-            )
+        paraphrase_param_components = [num_paraphrases]
+
+        tts_param_components = [
+            cut_off_sec,
+            margin,
+            cutoff_tolerance,
+            beam_size,
+            retry_beam_size,
+            stop_repetition,
+            sample_batch_size,
+            codec_audio_sr,
+            codec_sr,
+            top_k,
+            top_p,
+            temperature,
+            silence_tokens,
+            kvcache,
+            seed,
+            padding,
+        ]
+
+        input_video.change(
+            upload_video, inputs=input_video, outputs=[asr_button, run_all_button]
+        )
+        asr_button.click(
+            click_asr, inputs=input_video, outputs=[transcript, paraphrase_button]
+        )
+        paraphrase_button.click(
+            click_paraphrase,
+            inputs=[transcript] + paraphrase_param_components,
+            outputs=[paraphrases, selected_paraphrase, generate_audio_button],
+        )
+        generate_audio_button.click(
+            click_generate_audio,
+            inputs=[transcript, selected_paraphrase] + tts_param_components,
+            outputs=[generated_audio, lipsync_button],
+        )
+        lipsync_button.click(
+            click_lipsync, inputs=generated_audio, outputs=lipsynced_video
+        )
+        run_all_button.click(
+            run_all,
+            inputs=[input_video] + paraphrase_param_components + tts_param_components,
+            outputs=[
+                transcript,
+                paraphrase_button,
+                paraphrases,
+                selected_paraphrase,
+                generate_audio_button,
+                generated_audio,
+                lipsync_button,
+                lipsynced_video,
+            ],
+        )
+
+        # ------------------------------------------------------- #
 
         demo.launch(inbrowser=True, share=SHARE)
 

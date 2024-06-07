@@ -25,14 +25,14 @@ class SessionManager:
         self._sessions[session_id].extend(resources)
 
     def remove_session(self, session_id: int):
-        for resource in self._sessions.pop(session_id):
+        for resource in self._sessions.pop(session_id, []):
             if resource.is_dir():
                 shutil.rmtree(resource)
             else:
                 os.remove(resource)
 
     def remove_all_sessions(self):
-        for session_id in self._sessions.keys():
+        for session_id in list(self._sessions.keys()):
             self.remove_session(session_id)
 
 
