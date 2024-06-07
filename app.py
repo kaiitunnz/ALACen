@@ -1,5 +1,4 @@
 import ast
-import os
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -150,48 +149,91 @@ def lipsync(generated_audio_path: str) -> Optional[Path]:
 
 def main():
     with gr.Blocks().queue(concurrency_count=1) as demo:
+        with gr.Row(), gr.Column():
+            gr.Markdown("# ALACen Demo Application")
+            gr.Markdown(
+                "This is a demo application for ALACen. "
+                "It is a prototype and may not work perfectly. "
+                "If you encounter an error, you can safely rerun the application starting "
+                "from `Speech Recognition` or click `Run All` at the bottom of the page."
+                "The application is currently deployed on a machine with limited computing resources, "
+                "so it can process only one request at a time. Please be patient. "
+                "The entire process should take about 6 minutes if there is no concurrent user."
+            )
         with gr.Row():
             with gr.Column():
+                gr.Markdown("## 1. Input Video")
+                gr.Markdown(
+                    "Upload a video with violent speech to get started. "
+                    "It should be around 4-7 seconds long. "
+                    "ALACen works best on single-scene monologue videos with no background music."
+                )
                 input_video = gr.Video(
                     format="mp4", source="upload", interactive=True, label="Input Video"
                 )
-                transcript = gr.Textbox(
-                    placeholder="Input video transcript",
-                    interactive=False,
-                    label="Transcript",
-                )
-                asr_button = gr.Button("Transcribe", interactive=False)
             with gr.Column():
-                paraphrases = gr.Radio(
-                    type="value", interactive=False, label="Paraphrases"
-                )
-                selected_paraphrase = gr.Textbox(
-                    placeholder="Selected paraphrase",
-                    interactive=False,
-                    label="Selected Paraphrase",
-                )
-                paraphrase_button = gr.Button("Paraphrase", interactive=False)
-                paraphrases.change(
-                    lambda x: x, inputs=paraphrases, outputs=selected_paraphrase
-                )
+                gr.Markdown("## 2. Speech Recognition")
+                gr.Markdown("Automatically transcribe the input video.")
+                with gr.Group():
+                    transcript = gr.Textbox(
+                        placeholder="Input video transcript",
+                        interactive=False,
+                        label="Transcript",
+                        info="You can see and edit the transcript here.",
+                    )
+                    asr_button = gr.Button("Transcribe", interactive=False)
             with gr.Column():
-                generated_audio = gr.Audio(
-                    format="wav",
-                    type="filepath",
-                    interactive=False,
-                    label="Generated Speech",
+                gr.Markdown("## 3. Paraphrase Generation")
+                gr.Markdown(
+                    "Paraphrase the input transcript into a non-violent speech."
                 )
-                generate_audio_button = gr.Button("Text-to-Speech", interactive=False)
+                with gr.Group():
+                    paraphrases = gr.Radio(
+                        type="value",
+                        interactive=False,
+                        label="Paraphrases",
+                        info="Ordered from best to worst.",
+                    )
+                    selected_paraphrase = gr.Textbox(
+                        placeholder="Selected paraphrase",
+                        interactive=False,
+                        label="Selected Paraphrase",
+                        info="You can edit the selected paraphrase here.",
+                    )
+                    paraphrase_button = gr.Button("Paraphrase", interactive=False)
             with gr.Column():
-                lipsynced_video = gr.Video(
-                    format="mp4", interactive=False, label="Output Video"
+                gr.Markdown("## 4. Text-to-Speech Synthesis")
+                gr.Markdown(
+                    "Generate a speech audio from the selected paraphrase. You can try multiple times."
                 )
-                lipsync_button = gr.Button("Lip Sync", interactive=False)
+                with gr.Group():
+                    generated_audio = gr.Audio(
+                        format="wav",
+                        type="filepath",
+                        interactive=False,
+                        label="Generated Speech",
+                    )
+                    generate_audio_button = gr.Button(
+                        "Text-to-Speech", interactive=False
+                    )
+            with gr.Column():
+                gr.Markdown("## 5. Lip Synchronization")
+                gr.Markdown(
+                    "Generate a lip-synced video from the input video and the generated speech."
+                )
+                with gr.Group():
+                    lipsynced_video = gr.Video(
+                        format="mp4", interactive=False, label="Output Video"
+                    )
+                    lipsync_button = gr.Button("Lip Sync", interactive=False)
 
         with gr.Row():
             run_all_button = gr.Button("Run All", interactive=False)
 
-        with gr.Accordion("Parameters", open=False):
+        with gr.Accordion(
+            "Parameters (You can edit the generation parameters here, but we recommend against it.)",
+            open=False,
+        ):
             with gr.Group():
                 num_paraphrases = gr.Number(
                     NUM_PARAPHRASES,
@@ -403,6 +445,7 @@ def main():
         asr_button.click(
             click_asr, inputs=input_video, outputs=[transcript, paraphrase_button]
         )
+        paraphrases.change(lambda x: x, inputs=paraphrases, outputs=selected_paraphrase)
         paraphrase_button.click(
             click_paraphrase,
             inputs=[transcript] + paraphrase_param_components,
