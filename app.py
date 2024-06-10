@@ -19,6 +19,7 @@ except ImportError:
     )
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEMO_PATH = Path(__file__).parent / "demo/vid32.mp4"
 
 parser = ArgumentParser()
 parser.add_argument(
@@ -155,7 +156,7 @@ def main():
                 "This is a demo application for ALACen. "
                 "It is a prototype and may not work perfectly. "
                 "If you encounter an error, you can safely rerun the application starting "
-                "from `Speech Recognition` or click `Run All` at the bottom of the page."
+                "from `Speech Recognition` or click `Run All` at the bottom of the page. "
                 "The application is currently deployed on a machine with limited computing resources, "
                 "so it can process only one request at a time. Please be patient. "
                 "The entire process should take about 6 minutes if there is no concurrent user."
@@ -169,7 +170,11 @@ def main():
                     "ALACen works best on single-scene monologue videos with no background music."
                 )
                 input_video = gr.Video(
-                    format="mp4", source="upload", interactive=True, label="Input Video"
+                    DEMO_PATH,
+                    format="mp4",
+                    source="upload",
+                    interactive=True,
+                    label="Input Video",
                 )
             with gr.Column():
                 gr.Markdown("## 2. Speech Recognition")
@@ -181,7 +186,9 @@ def main():
                         label="Transcript",
                         info="You can see and edit the transcript here.",
                     )
-                    asr_button = gr.Button("Transcribe", interactive=False)
+                    asr_button = gr.Button(
+                        "Transcribe", interactive=DEMO_PATH is not None
+                    )
             with gr.Column():
                 gr.Markdown("## 3. Paraphrase Generation")
                 gr.Markdown(
@@ -228,7 +235,7 @@ def main():
                     lipsync_button = gr.Button("Lip Sync", interactive=False)
 
         with gr.Row():
-            run_all_button = gr.Button("Run All", interactive=False)
+            run_all_button = gr.Button("Run All", interactive=DEMO_PATH is not None)
 
         with gr.Accordion(
             "Parameters (You can edit the generation parameters here, but we recommend against it.)",
