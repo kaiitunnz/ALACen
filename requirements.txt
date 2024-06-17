@@ -6,6 +6,7 @@ datasets==2.16.0
 demucs==4.0.1
 dora_search==0.1.12
 einops==0.8.0
+evaluate==0.4.2
 ffmpeg_python==0.2.0
 flashy==0.0.2
 Flask==3.0.3
