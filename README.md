@@ -46,7 +46,7 @@ We provide four options for running ALACen.
 1. Execute the Python module. Replace `<path-to-your-video>` with the correct path.
 
 ```
-python -m src.alacen --video <path-to-your-video>
+python -m src.alacen -v --video <path-to-your-video> --num-gpus 3 --device cuda:3
 ```
 
 2. Run the `run.ipynb` file. This gives you an interactive execution of ALACen. Put your configuration parameters in the Configuration cell and run all the cells. If you encounter the prompt saying files already exist, try removing those files and rerun the cell.
@@ -56,8 +56,10 @@ python -m src.alacen --video <path-to-your-video>
 4. Run the Gradio demo application with the following command. Then, you can access the application with your browser by visiting the specified URL.
 
 ```
-python app.py -v -s
+python app.py -v -s --num-gpus 3 --device cuda:3
 ```
+
+Note that the current version runs on 4 NVIDIA GeForce GTX 1070 GPUs. If you have fewer but larger GPUs, you can set the number of GPUs and default device in the command line arguments accordingly.
 
 ## Project Structure
 

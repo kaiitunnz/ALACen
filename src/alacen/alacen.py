@@ -66,7 +66,9 @@ class ALACenSession:
 
     def paraphrase(self, transcript: str, num_paraphrases: int = 1) -> List[str]:
         self.logger.debug("Generating paraphrase...")
-        return self.alacen.paraphrase.paraphrase(transcript, num_paraphrases)
+        return self.alacen.paraphrase.paraphrase(
+            transcript, num_paraphrases, device=self.device
+        )
 
     def tts(
         self, transcript: str, target_transcript: str, tts_args: Callable[..., Any]

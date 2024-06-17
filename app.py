@@ -29,6 +29,8 @@ parser.add_argument("-n", "--num-paraphrases", type=int, default=5)
 parser.add_argument(
     "-s", "--share", action="store_true", help="Create a shared link", default=False
 )
+parser.add_argument("-d", "--device", type=str, help="Default device", default=DEVICE)
+parser.add_argument("--num-gpus", type=int, help="Number of GPUs to run on", default=3)
 args = parser.parse_args()
 
 VERBOSE = args.verbose
@@ -39,7 +41,7 @@ SHARE = args.share
 asr = Whisper()
 paraphrase = PegasusAlacen()
 tts = VoiceCraftTTS(model_name="330M_TTSEnhanced")
-lipsync = Diff2Lip(Diff2LipArgs())
+lipsync = Diff2Lip(Diff2LipArgs(num_gpus=args.num_gpus))
 
 alacen = ALACen(asr, paraphrase, tts, lipsync)
 session: Optional[ALACenSession] = None
@@ -48,7 +50,7 @@ session: Optional[ALACenSession] = None
 def asr(video_path: str) -> str:
     global session
 
-    session = alacen.create_session(video_path, verbose=VERBOSE, device=DEVICE)
+    session = alacen.create_session(video_path, verbose=VERBOSE, device=args.device)
     return session.asr()
 
 

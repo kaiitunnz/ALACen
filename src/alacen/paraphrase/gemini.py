@@ -44,7 +44,7 @@ class GeminiClient(ParaphraseGenerator):
             "Answer: "
         )
 
-    def paraphrase(self, speech: str, n: int = 1) -> List[str]:
+    def paraphrase(self, speech: str, n: int = 1, **_) -> List[str]:
         prompt = self.get_paraphrase_prompt(speech)
         candidates: List[Candidate] = []
         for _ in range(n):
