@@ -15,10 +15,10 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold  # type: 
 import config
 
 DATA_DIR = Path("violent_speeches")
-DATA_PATH = DATA_DIR / "violent_speeches_final.txt"
-RESULT_PATH = DATA_DIR / "violent_speeches_dataset.json"
+DATA_PATH = DATA_DIR / "violent_speech_final.txt"
+RESULT_PATH = DATA_DIR / "violent_speech_dataset.json"
 
-API_KEYS: List[str] = []   # Put your API keys here
+API_KEYS: List[str] = []  # Put your API keys here
 
 BATCH_SIZE = 10
 
@@ -78,7 +78,7 @@ class GeminiClient:
             prompt,
             generation_config=self.generation_config,
             safety_settings=self.safety_settings,
-            request_options={"retry": Retry(timeout=None)}
+            request_options={"retry": Retry(timeout=None)},
         )
         return outputs.candidates
 
